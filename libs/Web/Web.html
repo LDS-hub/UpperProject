@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>rk3568 智能物联网控制中心</title>
+  <style>
+    :root{
+      --bg:#0b1220; /* page background */
+      --panel:#07101a; /* panel background */
+      --muted:#94a3b8; /* muted text */
+      --accent:#06b6d4; /* cyan accent */
+      --accent-2:#f97316; /* orange */
+      --glass: rgba(255,255,255,0.03);
+      --border: rgba(148,163,184,0.12);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: "Microsoft YaHei", Arial, sans-serif;
+      background:linear-gradient(180deg,var(--bg),#071126);
+      color:#e6eef6;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      padding:16px;
+    }
+
+    /* header */
+    header{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 20px;border-radius:10px;background:linear-gradient(90deg,#021024, #081424);
+      border:1px solid var(--border);box-shadow:0 6px 20px rgba(2,6,23,0.6);
+      margin-bottom:14px;
+    }
+    header .title{font-size:20px;font-weight:700;letter-spacing:0.4px}
+    header .subtitle{font-size:13px;color:var(--muted)}
+
+    /* layout grid */
+    .wrap{display:grid;grid-template-columns: 320px 1fr;gap:18px;align-items:start}
+
+    /* left sensors */
+    .panel{background:var(--panel);border-radius:10px;padding:14px;border:1px solid var(--border)}
+    .sensors{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .sensor-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.03);}
+    .sensor-label{font-size:12px;color:var(--muted)}
+    .sensor-value{font-size:20px;margin-top:6px;font-weight:700;color:#e6f6f9}
+
+    /* small status strip */
+    .status-strip{display:flex;gap:8px;align-items:center;margin-top:12px}
+    .dot{width:10px;height:10px;border-radius:50%;background:#0f172a;border:2px solid #0f172a}
+    .status-item{font-size:13px;color:var(--muted)}
+
+    /* right area (video + controls) */
+    .video-panel{display:flex;flex-direction:column;gap:12px}
+    .video-box{border-radius:8px;overflow:hidden;height:420px;background:#000;border:1px solid rgba(255,255,255,0.04)}
+    .video-box video{width:100%;height:100%;object-fit:cover;display:block}
+
+    /* controls area - industrial row */
+    .controls-row{display:flex;gap:12px;align-items:center}
+    .card{flex:1;background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.008));border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,0.03)}
+    .control-title{font-size:13px;color:var(--muted);margin-bottom:8px}
+
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6f6f9;cursor:pointer}
+    .btn:hover{transform:translateY(-1px)}
+    .btn-primary{background:linear-gradient(180deg,var(--accent),#0284c7);color:#041127;border:none}
+    .btn-danger{background:linear-gradient(180deg,#ef4444,#dc2626);border:none}
+    .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+
+    /* sliders */
+    .slider{width:100%}
+    .slider-row{display:flex;align-items:center;gap:10px}
+    .slider-value{min-width:56px;text-align:right;color:var(--muted);font-weight:600}
+
+    /* control panel (below left/right) */
+    .control-panel{grid-column:1/-1;display:flex;gap:12px;margin-top:14px}
+    .control-panel .panel{flex:1}
+
+    /* logs full width */
+    .logs{grid-column:1/-1;margin-top:10px}
+    .log-box{height:160px;overflow:auto;padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.012), rgba(255,255,255,0.008));border-radius:8px;border:1px solid rgba(255,255,255,0.03);font-family:Consolas,monospace;font-size:12px;color:#cfefff}
+
+    footer{grid-column:1/-1;margin-top:10px;text-align:right;color:var(--muted);font-size:13px}
+
+    /* responsive */
+    @media (max-width:900px){.wrap{grid-template-columns:1fr;}.video-box{height:260px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="title">rk3568 智能物联网控制中心</div>
+      <div class="subtitle">工控大屏 · 实时监控 · 设备控制</div>
+    </div>
+    <div class="subtitle" id="connStatus">WS: 未连接</div>
+  </header>
+
+  <div class="wrap">
+    <!-- left sensors -->
+    <div class="panel">
+      <h3 style="margin-bottom:10px">传感器总览</h3>
+      <div class="sensors">
+        <div class="sensor-card"><div class="sensor-label">温度 (℃)</div><div class="sensor-value" id="temperature">--</div></div>
+        <div class="sensor-card"><div class="sensor-label">湿度 (%)</div><div class="sensor-value" id="humidity">--</div></div>
+        <div class="sensor-card"><div class="sensor-label">PM2.5 (μg/m³)</div><div class="sensor-value" id="pm25">--</div></div>
+        <div class="sensor-card"><div class="sensor-label">光照 (lux)</div><div class="sensor-value" id="light">--</div></div>
+        <div class="sensor-card"><div class="sensor-label">风扇转速 (rpm)</div><div class="sensor-value" id="fan">--</div></div>
+        <div class="sensor-card"><div class="sensor-label">系统电压 (V)</div><div class="sensor-value" id="voltage">--</div></div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+        <div class="status-strip"><div style="width:10px;height:10px;border-radius:50%;background:#10b981;margin-right:8px"></div><div class="status-item">设备在线</div></div>
+        <div class="status-strip"><div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;margin-right:8px"></div><div class="status-item">警告: 无</div></div>
+      </div>
+    </div>
+
+    <!-- right: video + controls -->
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="video-panel panel">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">摄像头视频</h3>
+          <div class="subtitle" style="font-size:13px">流: /video_stream</div>
+        </div>
+        <div class="video-box" id="videoBox">
+          <video id="camera" src="/video_stream" autoplay muted controls playsinline></video>
+        </div>
+
+        <div class="controls-row">
+          <div class="card">
+            <div class="control-title">基本录像控制</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary" onclick="sendControl('video_start')">开始录制</button>
+              <button class="btn btn-ghost" onclick="sendControl('video_stop')">停止录制</button>
+              <button class="btn btn-ghost" onclick="sendControl('snapshot')">拍照</button>
+            </div>
+          </div>
+
+          <div class="card" style="max-width:320px">
+            <div class="control-title">视频状态</div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div style="font-size:13px;color:var(--muted)">播放状态</div>
+                <div id="videoState" style="font-weight:700;margin-top:6px">空闲</div>
+              </div>
+              <div>
+                <div style="font-size:13px;color:var(--muted)">分辨率</div>
+                <div id="videoRes" style="font-weight:700;margin-top:6px">--</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- controls below video: motor, buzzer, sliders -->
+        <div class="controls-row">
+          <div class="card">
+            <div class="control-title">电机控制</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-primary" id="motor-on">启动</button>
+              <button class="btn btn-danger" id="motor-off">停止</button>
+              <div style="margin-left:12px;font-size:13px;color:var(--muted)">方向</div>
+              <select id="motor-dir" style="background:transparent;color:#e6eef6;border-radius:6px;padding:6px;border:1px solid rgba(255,255,255,0.04)">
+                <option value="cw">正转</option>
+                <option value="ccw">反转</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="control-title">蜂鸣器</div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn" id="buzzer-on">开启</button>
+              <button class="btn btn-ghost" id="buzzer-off">关闭</button>
+              <div style="margin-left:auto;color:var(--muted);font-size:13px">持续: <input id="buzzer-duration" type="number" value="2" min="0" style="width:60px;margin-left:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);padding:6px;border-radius:6px;color:#e6eef6">s</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="control-title">风速 & 亮度</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div class="slider-row">
+                <div style="flex:1">
+                  <input id="fan-speed" class="slider" type="range" min="0" max="100" value="50">
+                </div>
+                <div class="slider-value" id="fan-speed-val">50%</div>
+              </div>
+
+              <div class="slider-row">
+                <div style="flex:1">
+                  <input id="light-bright" class="slider" type="range" min="0" max="100" value="70">
+                </div>
+                <div class="slider-value" id="light-val">70%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- logs -->
+    <div class="logs">
+      <div class="panel">
+        <h3 style="margin:0 0 8px 0">实时操作日志</h3>
+        <div class="log-box" id="logBox"></div>
+      </div>
+    </div>
+
+    <footer>当前软件版本：<strong>V1.0.0</strong></footer>
+  </div>
+
+  <script>
+    // 简化的控制发送函数（可替换为 WebSocket / MQTT 实现）
+    const LOGBOX = document.getElementById('logBox');
+    function addLog(text){
+      const t = new Date().toLocaleString();
+      LOGBOX.innerHTML += `<div>${t} • ${text}</div>`;
+      LOGBOX.scrollTop = LOGBOX.scrollHeight;
+    }
+
+    function sendControl(cmd, payload={}){
+      // 如果未来接入 WS 请在此发送 JSON
+      addLog(`[CTRL] ${cmd} ${JSON.stringify(payload)}`);
+      // 示例：ws && ws.send(JSON.stringify({type:'control',cmd,payload}))
+    }
+
+    // 绑定控件
+    document.getElementById('motor-on').onclick = ()=>{
+      const dir = document.getElementById('motor-dir').value;
+      sendControl('motor_start',{dir});
+      addLog('电机：启动（方向：'+dir+'）');
+    }
+    document.getElementById('motor-off').onclick = ()=>{ sendControl('motor_stop'); addLog('电机：停止'); }
+
+    document.getElementById('buzzer-on').onclick = ()=>{ const d=Number(document.getElementById('buzzer-duration').value||1); sendControl('buzzer_on',{duration:d}); addLog('蜂鸣器：开启，持续 '+d+'s'); }
+    document.getElementById('buzzer-off').onclick = ()=>{ sendControl('buzzer_off'); addLog('蜂鸣器：关闭'); }
+
+    const fanSlider = document.getElementById('fan-speed');
+    const fanVal = document.getElementById('fan-speed-val');
+    fanSlider.oninput = ()=>{ fanVal.textContent = fanSlider.value+'%'; sendControl('set_fan',{value:fanSlider.value}); }
+
+    const lightSlider = document.getElementById('light-bright');
+    const lightVal = document.getElementById('light-val');
+    lightSlider.oninput = ()=>{ lightVal.textContent = lightSlider.value+'%'; sendControl('set_brightness',{value:lightSlider.value}); }
+
+    // 模拟传感器数据（替换为真实数据源）
+    function rand(min,max,dec=1){return (Math.random()*(max-min)+min).toFixed(dec)}
+    setInterval(()=>{
+      document.getElementById('temperature').textContent = rand(20,35,1);
+      document.getElementById('humidity').textContent = rand(30,80,0);
+      document.getElementById('pm25').textContent = rand(5,120,0);
+      document.getElementById('light').textContent = rand(100,1000,0);
+      document.getElementById('fan').textContent = Math.floor(rand(0,3000,0));
+      document.getElementById('voltage').textContent = rand(11.5,12.8,2);
+    },2000);
+
+    // 视频播放状态显示
+    const vid = document.getElementById('camera');
+    const vState = document.getElementById('videoState');
+    const vRes = document.getElementById('videoRes');
+    vid.addEventListener('play',()=>{ vState.textContent='播放中'; addLog('视频播放：开始'); });
+    vid.addEventListener('pause',()=>{ vState.textContent='已暂停'; addLog('视频播放：暂停'); });
+    vid.addEventListener('error',()=>{ vState.textContent='错误'; addLog('视频播放：错误'); });
+    vid.addEventListener('loadedmetadata',()=>{ vRes.textContent = vid.videoWidth+'x'+vid.videoHeight; });
+
+    // 启动信息
+    addLog('界面已加载（工业风）');
+  </script>
+</body>
+</html>
